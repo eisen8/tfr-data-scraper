@@ -87,13 +87,13 @@ if __name__ == "__main__":
             fail_messages.append(f"Exception for {tor_hash} - {e}\n{traceback.format_exc()}")
 
         tprint(f"Finished processing torrent {i} of {len(rows)}.")
-        tprint(f"Estimated time remaining: {estimate_time_remaining(start_time, i, len(rows), sleep_time_seconds+1)}")
+        tprint(f"Estimated time remaining: {estimate_time_remaining(start_time, i, len(rows), sleep_time_seconds+3)}")
         tprint("----------------------")
         time.sleep(random.uniform(sleep_time_seconds - sleep_time_jiggle, sleep_time_seconds + sleep_time_jiggle))
 
     DB.close_db()
     tprintln()
-    tprint(f"\n\n ---- Script has finished. ----")
+    tprint(f"---- Script has finished. ----")
     tprint(f"Run time: {format_time(time.time()-start_time)}")
     tprint(f"Results: ")
     tprint(f"{total_demagnetized} Torrent Demagnetized")

@@ -1,10 +1,12 @@
 import os
+import time
 import traceback
 
 import bencodepy
 from common.database import Database as DB
 from common.constants import Constants as C
 from common.print_helper import tprint, tprintln
+from src.trf_data_scraper.common.time_helper import format_time
 
 video_extensions = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mpeg", ".mpg", ".ogv", ".3gp"}
 
@@ -31,12 +33,14 @@ def _parse_torrent(file_path):
 
 
 if __name__ == "__main__":
+    #  DevNotes: Some errors are expected here. Some files will be corrupted or missing metadata (fault of the site).
+
     torrent_files_processed = 0
     subfiles_added = 0
     fail_messages = []
 
+    start_time = time.time()
     DB.open_db()
-
     for path, folders, torr_files in os.walk(C.TORRENT_FOLDER_PATH):
         for torr_file in torr_files:
             if torr_file.endswith('.torrent'):
@@ -57,6 +61,7 @@ if __name__ == "__main__":
                     fail_messages.append(f"Exception for {torr_file} - {e}\n{traceback.format_exc()}")
     tprintln()
     tprint(f"---- Script has finished. ----")
+    tprint(f"Run time: {format_time(time.time() - start_time)}")
     tprint(f"Results: ")
     tprint(f"{torrent_files_processed} Torrent files Processed.")
     tprint(f"{subfiles_added} Subfiles Added.")

@@ -13,6 +13,7 @@ from common.database import Database as DB
 import re
 
 from common.print_helper import tprint, tprintln
+from src.trf_data_scraper.common.time_helper import format_time, estimate_time_remaining
 
 if __name__ == "__main__":
     # Config
@@ -50,6 +51,7 @@ if __name__ == "__main__":
 
     fail_messages = []
     total_links = 0
+    start_time = time.time()
     for i, href in enumerate(hrefs):
         try:
             url = urljoin(base_site, href[0])
@@ -79,6 +81,8 @@ if __name__ == "__main__":
             fail_messages.append(f"Exception for {url} - {e}\n{traceback.format_exc()}")
 
         tprint(f"Finished processing url {i} of {len(hrefs)}")
+        tprint(f"Estimated time remaining: {estimate_time_remaining(start_time, i, len(hrefs), sleep_time_seconds+3)}")
+        tprint("----------------------")
 
         if len(fail_messages) >= max_fails:
             tprint(f"Failed {len(fail_messages)} times. Stopping the scrape")
@@ -88,7 +92,8 @@ if __name__ == "__main__":
 
     DB.close_db()
     tprintln()
-    tprint(f"\n\n ---- Script has finished. ----")
+    tprint(f"---- Script has finished. ----")
+    tprint(f"Run time: {format_time(time.time()-start_time)}")
     tprint(f"Results: ")
     tprint(f"{total_links} Links added to DB.")
     tprint(f'{len(fail_messages)} errors occurred')

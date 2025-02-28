@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 from common.database import Database as DB
 from common.print_helper import tprint, tprintln
+from src.trf_data_scraper.common.time_helper import format_time, estimate_time_remaining
 
 
 def _update_url_page_number(page_url):
@@ -103,6 +104,7 @@ if __name__ == "__main__":
     total_hrefs_added = 0
 
     # Scraping loop
+    start_time = time.time()
     while should_continue:
         try:
             tprint(f"Processing Url {url}")
@@ -142,7 +144,8 @@ if __name__ == "__main__":
 
     DB.close_db()
     tprintln()
-    tprint(f"\n\n ---- Script has finished. ----")
+    tprint(f"---- Script has finished. ----")
+    tprint(f"Run time: {format_time(time.time()-start_time)}")
     tprint(f"Results: ")
     tprint(f"{total_hrefs_added} Hrefs added to DB.")
     tprint(f"{pages_processed} pages successfully processed.")

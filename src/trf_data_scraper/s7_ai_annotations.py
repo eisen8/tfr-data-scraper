@@ -7,8 +7,10 @@ from dotenv import load_dotenv
 
 from google import genai
 
-from common.print_helper import tprint
+from common.print_helper import tprint, tprintln
 from common.constants import Constants as C
+from common.database import Database as DB
+from src.trf_data_scraper.common.time_helper import format_time
 
 
 class annotation:
@@ -28,66 +30,88 @@ if __name__ == "__main__":
     # Config
     load_dotenv()
     api_key = os.getenv("GEMINI_API_KEY")
-    output_file = C.DATA_FOLDER_PATH / "file_name_annotations.json"
+    output_file = C.ANNOTATIONS_FOLDER_PATH / "file_name_annotations.json"
     max_fails = 3
     sleep_time_seconds = 5  # current free tier limit: 15 Requests per minute 	1,000,000 Tokens per minute 	1,500 requests per day
-    data_input_chunk_size = 10  # num of data inputs per request
+    data_input_chunk_size = 40  # num of data inputs per request
 
-    with open('s7_prompt.txt', 'r') as file:
+    start_time = time.time()
+    with open(C.DATA_FOLDER_PATH / 's7_prompt.txt', 'r') as file:
         base_prompt = file.read()
-    with open('s7_data.txt', 'r') as file:
-        full_data = file.read()
-        filenames = full_data.splitlines()
 
     if api_key is None:
         raise Exception("Missing Gemini API Key. Make sure to create a .env with GEMINI_API_KEY set to your API key")
 
     client = genai.Client(api_key=api_key)
 
-    #  Chunk data into multiple requests then combine outputs
-    result_prompts = []
+    #  Chunk data into multiple requests
     fails = 0
-    for i in range(0, len(filenames), data_input_chunk_size):
+    total_tokens = 0
+    index = 0
+    file_names_processed = 0
+    DB.open_db()
+    total_filenames_to_annotate = DB.get_count_of_files_to_annotate()
+    tprint(f"{total_filenames_to_annotate} file to annotate")
+    while True:
         try:
-            data_chunk = filenames[i: i + data_input_chunk_size]
-            prompt = base_prompt + "\n" + '\n'.join(data_chunk)
+            filenames = DB.get_files_to_annotate(data_input_chunk_size)
+            if not filenames:
+                break
 
-            tprint(f"Sending request to Gemini for chunk {i}-{i + data_input_chunk_size} out of {len(full_data)}")
+            file_names_processed += len(filenames)
+            prompt = base_prompt + "\n" + '\n'.join(filenames)
+            tprint(f"Sending request to Gemini for chunk {index}")
             ts = time.perf_counter()
             response = client.models.generate_content(
-                model="gemini-2.0-flash",  # Specify the model you want to use
+                model="gemini-2.0-flash",
                 contents=prompt,
             )
             tprint(f"API call took {(time.perf_counter() - ts):.1f} seconds.")
-
-            result_prompts.append(response.text)
-            # tprint(response.text)
             if response.usage_metadata:
                 tprint(f"Total tokens used: {response.usage_metadata.total_token_count}")
                 tprint(f"Prompt tokens used: {response.usage_metadata.prompt_token_count}")
                 tprint(f"Candidates tokens used: {response.usage_metadata.candidates_token_count}")
+                total_tokens += response.usage_metadata.total_token_count
             else:
                 tprint("Usage metadata not available.")
 
-            #with open(C.DATA_FOLDER_PATH / f"response_{i}.txt", "w") as f:
-            #    f.write(response.text)
+            cleaned_str = response.text.strip("```json\n").strip("```")
+
+            # Temp for verification
+            with open(C.ANNOTATIONS_FOLDER_PATH / f"response_{round(time.time())}.txt", "w") as f:
+                f.write(cleaned_str)
+
+            try:
+                json_list = json.loads(cleaned_str)
+                annot_dict = {}
+                for filename in filenames:
+                    annotation = next((obj for obj in json_list if obj.get("filename") == filename), None)
+                    if annotation:
+                        DB.add_annotation(filename, json.dumps(annotation, indent=4))
+                    else:
+                        tprint(f"Could not find annotation for filename {filename}")
+
+            except Exception as e:
+                tprint(f"Error with response Json for {index} - {e}\n{traceback.format_exc()}")
 
         except Exception as e:
             fails += 1
-            tprint(f"Exception for chunk {i}-{i + data_input_chunk_size} out of {len(full_data)} - {e}\n{traceback.format_exc()}")
+            tprint(f"Exception for chunk {index} - {e}\n{traceback.format_exc()}")
 
         if fails >= max_fails:
             tprint(f"Failed {fails} times. Stopping.")
             break
         else:
-            time.sleep(sleep_time_seconds)
+            time_to_sleep = (sleep_time_seconds - (time.time() - start_time))
+            if time_to_sleep > 0:
+                time.sleep(time_to_sleep)
+            index += 1
 
-    # combine results into one and save to file
-    combined_list = []
-    for json_str in result_prompts:
-        cleaned_str = json_str.strip("```json\n").strip("```")  # AI response surrounds the json with this metadata, so remove it
-        combined_list.extend(json.loads(cleaned_str))
+    tprintln()
+    tprint(f"---- Script has finished. ----")
+    tprint(f"Run time: {format_time(time.time() - start_time)}")
+    tprint(f"Results: ")
+    tprint(f"{file_names_processed} FileNames Processed.")
+    tprint(f"{index+1} Responses handled")
+    tprint(f"{total_tokens} Tokens used")
 
-    # Write the combined list to a file
-    with open(output_file, 'w') as f:
-        json.dump(combined_list, f, indent=4)

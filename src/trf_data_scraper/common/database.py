@@ -33,6 +33,14 @@ class Database:
             training_group CHAR(1)
         )
         """)
+
+        Database._cursor.execute("""
+        CREATE TABLE IF NOT EXISTS annotations (
+            filename TEXT UNIQUE,
+            annotation_json TEXT
+        )
+        """)
+
         Database._conn.commit()
 
     @staticmethod
@@ -97,3 +105,27 @@ class Database:
     def get_file_names(training_group):
         Database._cursor.execute("SELECT file_names FROM links WHERE training_group = ? and file_names IS NOT NULL", (training_group,))
         return Database._cursor.fetchall()
+
+    @staticmethod
+    def get_files_to_annotate(n):
+        Database._cursor.execute("SELECT filename FROM annotations WHERE annotation_json IS NULL LIMIT ?", (n,))
+        rows = [row[0] for row in Database._cursor.fetchall()]
+        return rows
+
+    @staticmethod
+    def get_count_of_files_to_annotate():
+        Database._cursor.execute("SELECT COUNT(filename) FROM annotations WHERE annotation_json IS NULL")
+        count = Database._cursor.fetchone()[0]
+        return count
+
+    @staticmethod
+    def bulk_insert_files_to_annotate(filenames: []) -> int:
+        filenames = [(filename,) for filename in filenames]  # ExecuteMany expects a list of tuples
+        Database._cursor.executemany("INSERT OR IGNORE INTO annotations (filename) VALUES (?)", filenames)
+        Database._conn.commit()
+        return Database._cursor.rowcount
+
+    @staticmethod
+    def add_annotation(filename, annotation):
+        Database._cursor.execute("UPDATE annotations SET annotation_json = ? WHERE filename = ?", (annotation, filename))
+        Database._conn.commit()
