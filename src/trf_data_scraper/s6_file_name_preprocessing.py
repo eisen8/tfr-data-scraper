@@ -15,6 +15,9 @@ def _preprocessor(s):
     s = re.sub(r'www\.([a-zA-Z0-9]+)\.([a-zA-Z0-9.\/]+)', r'', s, flags=re.IGNORECASE)  # websites with periods
     s = re.sub(r'www\s([a-zA-Z0-9]+)\s([a-zA-Z0-9.\/]+)', r'', s, flags=re.IGNORECASE)  # websites with whitespace
 
+    # Add space between Season and Episode (i.e. S05E05 -> S 05 E 05) so it can be tokenized
+    s = re.sub(r'S(\d+)E(\d+)', r'S \1 E \2', s, flags=re.IGNORECASE)
+
     # Replaces all periods with space
     s = re.sub(r'\.', ' ', s)
     # s = re.sub(r'(?<!\d)\.(?!\d)', ' ', s)
@@ -24,8 +27,9 @@ def _preprocessor(s):
     s = re.sub(r'_', ' ', s)
 
     # Remove dashes that are next to brackets
-    s = re.sub(r'-([\[\(\]\)])', '\g<1>', s)
-    s = re.sub(r'([\[\(\]\)])-', '\g<1>', s)
+    s = re.sub(r'-', ' ', s)
+    # s = re.sub(r'-([\[\(\]\)])', '\g<1>', s)
+    #s = re.sub(r'([\[\(\]\)])-', '\g<1>', s)
 
     # Add whitespace before non-prefix open brackets/parenthesis
     s = re.sub(r'(?<=[a-zA-Z0-9\]\)])[\[\(]', ' \g<0>', s)
@@ -61,8 +65,6 @@ if __name__ == "__main__":
     remove_non_ascii_files = True
     training_group = "T"
     shuffle = True
-    output_file_name = "training_data.txt"
-    output_path = C.DATA_FOLDER_PATH / output_file_name
     max_files_per_torrent = 10
     min_file_name_size = 12
 
@@ -96,13 +98,13 @@ if __name__ == "__main__":
         processed_filenames = []
         for filename in filenames:
             processed = _preprocessor(filename)
-            tprint(f"{filename} ->")
-            tprint(f"{processed}")
+            # tprint(f"{filename} ->")
+            # tprint(f"{processed}")
             processed_filenames.append(processed)
 
         combined.extend(processed_filenames)
 
-    tprint(f"Writing to db {output_path}")
+    tprint(f"Writing to db")
 
     annotation_rows_count = DB.bulk_insert_files_to_annotate(combined)
 

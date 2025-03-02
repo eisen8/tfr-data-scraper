@@ -129,3 +129,8 @@ class Database:
     def add_annotation(filename, annotation):
         Database._cursor.execute("UPDATE annotations SET annotation_json = ? WHERE filename = ?", (annotation, filename))
         Database._conn.commit()
+
+    @staticmethod
+    def clear_all_annotations():
+        Database._cursor.execute("UPDATE annotations SET annotation_json = NULL WHERE annotation_json IS NOT NULL")
+        Database._conn.commit()

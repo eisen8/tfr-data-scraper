@@ -31,9 +31,10 @@ if __name__ == "__main__":
     load_dotenv()
     api_key = os.getenv("GEMINI_API_KEY")
     output_file = C.ANNOTATIONS_FOLDER_PATH / "file_name_annotations.json"
+    max_requests = 20
     max_fails = 3
     sleep_time_seconds = 5  # current free tier limit: 15 Requests per minute 	1,000,000 Tokens per minute 	1,500 requests per day
-    data_input_chunk_size = 40  # num of data inputs per request
+    data_input_chunk_size = 30  # num of data inputs per request
 
     start_time = time.time()
     with open(C.DATA_FOLDER_PATH / 's7_prompt.txt', 'r') as file:
@@ -92,6 +93,7 @@ if __name__ == "__main__":
                         tprint(f"Could not find annotation for filename {filename}")
 
             except Exception as e:
+                fails += 1
                 tprint(f"Error with response Json for {index} - {e}\n{traceback.format_exc()}")
 
         except Exception as e:
@@ -106,6 +108,10 @@ if __name__ == "__main__":
             if time_to_sleep > 0:
                 time.sleep(time_to_sleep)
             index += 1
+
+        if index >= max_requests:
+            tprint(f"Completed max requests of {index}")
+            break
 
     tprintln()
     tprint(f"---- Script has finished. ----")
