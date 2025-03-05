@@ -1,6 +1,6 @@
 **/.env
 **/data/torrent/*
-**/data/annotations/*
+**/data/responses/*
 **/Training_Data.txt
 .idea/
 

@@ -1,0 +1,45 @@
+You are a data annotator tasked with extracting relevant metadata from filenames related to anime, TV shows, and movies. For each filename provided, generate a JSON object containing annotations that classify the various pieces of information in the filename. Your annotations should include various labels such NAME, SEASON, EPISODE, EPISODE_TITLE, LANGUAGE< VIDEO_QUALITY, COMPRESSION, and other metadata labels. Each word in the filename should only be associated with a single label but there can be multiple instances of a label in a given output. Very generic metadata words like HD and Hi-Def can be ignored. If any label is not present in the filename, do not include it in the annotations.
+
+Each annotation should consist of a "text" field containing the extracted value and a "label" field indicating the type of metadata. The text shouldn't include brackets or parentheses. Below is an example of how the output should be structured:
+{
+  "filename": "<original_filename>",
+  "annotations": [
+    {"text": "<extracted_text>", "label": "<metadata_type>"}
+  ]
+}
+
+Here is a real example of an output:
+{
+  "filename": "Digimon - Digital Monsters - S02E07 - Guardian Angel (Dual-Audio 1080p 10bit HD DDP 2.0 BluRay AAC x265 Bluespots)",
+  "annotations": [
+    {"text": "Digimon - Digital Monsters", "label": "NAME"},
+    {"text": "02", "label": "SEASON"},
+    {"text": "07", "label": "EPISODE"},
+    {"text": "Guardian Angel", "label": "EPISODE_TITLE"},
+    {"text": "Dual-Audio", "label": "LANGUAGE"},
+    {"text": "1080p", "label": "VIDEO_QUALITY"},
+    {"text": "10bit", "label": "VIDEO_QUALITY"},
+    {"text": "DDP 2.0", "label": "SOUND_QUALITY"},
+    {"text": "AAC", "label": "SOUND_QUALITY"},
+    {"text": "BluRay", "label": "SOURCE"},
+    {"text": "x265", "label": "COMPRESSION"},
+    {"text": "Bluespots", "label": "RELEASE_GROUP"}
+  ]
+}
+
+Here are the label types you will use:
+- **NAME**: The name of the anime, TV show, or movie.
+- **YEAR**: The release year. This should only be an integer. If a range of years is given, choose the start. For example, for "2020-2024" just use "2020". If two very different years are given then one is probably part of the title. For example, in "Wonder Woman 1984 2020" the year is "2020" and the title is "Wonder Woman 1984".
+- **SEASON**: The season number. This should generally only be an integer. Can be listed as things like "Season 1" or "S1" or "1x5" where season is 1. In rarer cases it can look like "Part 1" or "P1". There should only ever be 1 season label.
+- **SEASON_PART**: Rarely a season will be released in parts. For example if it says "Season 1 Part 2" or "S01P2" the season part is "2". This should only be an integer.
+- **EPISODE**: The episode number. This should generally only be an integer but in rare cases might be something generic like "Opening 2". Can be listed as things like "Episode 5", "E 05", or "Ep 5". Sometimes it will be next to the season in cases like "1x5" or "S01E05" where the SEASON is 1 and EPISODE is 5.
+- **EPISODE_TITLE**: The title of the episode if given.
+- **LANGUAGE**: Anything related to language. Could be things like "Dual Audio", "Dual", "MSubs", "Multiple Subtitle", or "Multi-Sub" or specific languages like "Jap" or "Ita" or "Eng" or "Hindi"
+- **VIDEO_QUALITY**: The video quality or resolution. This could include terms like "1080p", "720p", "10 bit" or "10bit".
+- **SOUND_QUALITY**: The sound quality, format, or configuration. This could include terms like "DDP 2.0" or "DDP5.1 Atmos", "DTS 7.1", "AAC", "AC3"
+- **COMPRESSION**: Any compression method used. For example: "x265" or "h264".
+- **SOURCE**: The source of the video. This could refer to the rip type or platform, such as "BluRay", "TV", "DVD", "WebRip", "Hulu", "Amazon", "Amzn", "Netflix", or "NF".
+- **RELEASE_GROUP**: The user or group that uploaded the file. Could be things like "AnimeTime" or "Kingdom". Do not include brackets or parentheses.
+- **OTHER**: Anything that doesn't fit in an above label but seems important. Do not include brackets or parentheses. This could be things like 8 or 16 character hashes such as "ABDEFGAS" or that the movie is "UNRATED".
+
+Annotate each of the following filenames (separated by a newline) and put the outputs in a JSON list:
