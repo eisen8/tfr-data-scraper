@@ -66,7 +66,6 @@ if __name__ == "__main__":
     sleep_time_jiggle = 5  # Jiggle time + and -. The actual sleep time will be randomly between sleep_time_seconds + or - this time.
 
     # Script
-    DB.open_db()
     rows = DB.get_magnet_links_without_torrent()
     if shuffle:
         random.shuffle(rows)
@@ -91,7 +90,6 @@ if __name__ == "__main__":
         L.info("----------------------")
         time.sleep(random.uniform(sleep_time_seconds - sleep_time_jiggle, sleep_time_seconds + sleep_time_jiggle))
 
-    DB.close_db()
     L.info(f"---- Script has finished. ----")
     L.info(f"Run time: {format_time(time.time() - start_time)}")
     L.info(f"Results: ")

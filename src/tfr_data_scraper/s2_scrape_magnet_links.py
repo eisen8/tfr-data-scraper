@@ -42,9 +42,8 @@ if __name__ == "__main__":
     # Script
     session = requests.Session()
     session.headers.update(headers)
-
-    DB.open_db()
-    hrefs = DB.get_hrefs_without_magnet_links()
+    with Database() as DB:
+        hrefs = DB.get_hrefs_without_magnet_links()
     if shuffle:
         random.shuffle(hrefs)
     L.info(f'Found {len(hrefs)} hrefs to process')
@@ -90,7 +89,6 @@ if __name__ == "__main__":
         else:
             time.sleep(random.uniform(sleep_time_seconds - sleep_time_jiggle, sleep_time_seconds + sleep_time_jiggle))
 
-    DB.close_db()
     L.info(f"---- Script has finished. ----")
     L.info(f"Run time: {format_time(time.time()-start_time)}")
     L.info(f"Results: ")

@@ -92,8 +92,7 @@ if __name__ == "__main__":
     }
 
     # Script
-    DB.open_db()
-
+    DB.create_db()
     session = requests.Session()
     session.headers.update(headers)
 
@@ -141,7 +140,6 @@ if __name__ == "__main__":
         else:  # Sleep with jiggle
             time.sleep(random.uniform(sleep_time_seconds - sleep_time_jiggle, sleep_time_seconds + sleep_time_jiggle))
 
-    DB.close_db()
     L.info(f"---- Script has finished. ----")
     L.info(f"Run time: {format_time(time.time() - start_time)}")
     L.info(f"Results: ")

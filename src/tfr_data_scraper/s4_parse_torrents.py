@@ -41,7 +41,6 @@ if __name__ == "__main__":
     fail_messages = []
 
     start_time = time.time()
-    DB.open_db()
     for path, folders, torr_files in os.walk(C.TORRENT_FOLDER_PATH):
         for torr_file in torr_files:
             if torr_file.endswith('.torrent'):
