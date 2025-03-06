@@ -5,8 +5,9 @@ import traceback
 import bencodepy
 from common.database import Database as DB
 from common.constants import Constants as C
-from common.print_helper import tprint, tprintln
-from src.tfr_data_scraper.common.time_helper import format_time
+
+from common.time_helper import format_time
+from common.logger import Logger as L
 
 video_extensions = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mpeg", ".mpg", ".ogv", ".3gp"}
 
@@ -51,20 +52,19 @@ if __name__ == "__main__":
                         continue
 
                     name, files = _parse_torrent(os.path.join(path, torr_file))
-                    tprint(f"files: {",".join(files)}")
+                    L.info(f"files: {",".join(files)}")
                     DB.set_file_names(id, files)
 
                     subfiles_added += len(files)
                     torrent_files_processed += 1
                 except Exception as e:
-                    tprint(f"Exception for {torr_file} - {e}\n{traceback.format_exc()}")
+                    L.error(f"Exception for {torr_file}", e)
                     fail_messages.append(f"Exception for {torr_file} - {e}\n{traceback.format_exc()}")
-    tprintln()
-    tprint(f"---- Script has finished. ----")
-    tprint(f"Run time: {format_time(time.time() - start_time)}")
-    tprint(f"Results: ")
-    tprint(f"{torrent_files_processed} Torrent files Processed.")
-    tprint(f"{subfiles_added} Subfiles Added.")
-    tprint(f'{len(fail_messages)} errors occurred')
+    L.info(f"---- Script has finished. ----")
+    L.info(f"Run time: {format_time(time.time() - start_time)}")
+    L.info(f"Results: ")
+    L.info(f"{torrent_files_processed} Torrent files Processed.")
+    L.info(f"{subfiles_added} Subfiles Added.")
+    L.info(f'{len(fail_messages)} errors occurred')
     for i, m in enumerate(fail_messages):
-        tprint(f'Error {i+1} - {m}')
+        L.error(f'Error {i+1} - {m}')

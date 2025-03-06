@@ -4,11 +4,21 @@ from common.constants import Constants as C
 
 
 class Database:
+    """
+    A facade class for interacting with the Database.
+    """
+
     _cursor = None
     _conn = None
 
     @staticmethod
     def open_db():
+        """ Opens the Database (creating it if needed)
+
+        Returns:
+            None
+        """
+
         Database._conn = sqlite3.connect(str(C.DB_FILE_PATH))
         Database._conn.row_factory = sqlite3.Row  # Treat rows as dictionaries rather than tuples
         Database._cursor = Database._conn.cursor()
@@ -21,7 +31,6 @@ class Database:
         # torrent_file: the filename and path indicating that the magnetic link has been processed (s3)
         # file_names: The filenames and paths (newline separated) from the torrent file (s4)
         # training_group: The training group (T for training or E for evaluating) assigned to the torrent (s5)
-
         Database._cursor.execute("""
         CREATE TABLE IF NOT EXISTS links (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,6 +43,9 @@ class Database:
         )
         """)
 
+        # filename: The filename
+        # annotation_json: Annotations/labels for the given filename
+        # annotation_kson_indiced: annotation_json with start and end indices added for each label.
         Database._cursor.execute("""
         CREATE TABLE IF NOT EXISTS annotations (
             filename TEXT UNIQUE,
@@ -46,92 +58,213 @@ class Database:
 
     @staticmethod
     def close_db():
+        """ Closes the Database
+
+        Returns:
+            None
+        """
+
         if Database._conn:
             Database._conn.close()
 
     @staticmethod
-    def bulk_insert_hrefs(hrefs: []) -> int:
+    def bulk_insert_hrefs(hrefs: list[str]) -> int:
+        """ Bulk insert of href links as part of S1. Only inserts hrefs that are unique.
+
+        Args:
+            hrefs (list[str]): An array of hrefs scraped from a search page that links to a more specific page with a torrent magnet link.
+
+        Returns:
+            int: The number of actual items inserted.
+        """
+
         hrefs = [(href,) for href in hrefs]  # ExecuteMany expects a list of tuples
         Database._cursor.executemany("INSERT OR IGNORE INTO links (href) VALUES (?)", hrefs)
         Database._conn.commit()
         return Database._cursor.rowcount
 
     @staticmethod
-    def get_hrefs_without_magnets():
+    def get_hrefs_without_magnet_links() -> list[str]:
+        """ Retrieves all hrefs that do not have magnetic links.
+
+        Returns:
+            list[str]: A list of hrefs to be processed by S2.
+        """
+
         Database._cursor.execute("SELECT href FROM links WHERE href IS NOT NULL and magnet_link IS NULL")
-        hrefs = Database._cursor.fetchall()
+        hrefs = [row[0] for row in Database._cursor.fetchall()]  # fetchall returns a tuple, convert to list
         return hrefs
 
     @staticmethod
-    def update_href_with_magnet(href, magnet_link):
+    def update_href_with_magnet_link(href: str, magnet_link: str) -> None:
+        """ Updates a given href with a magnet_link
+
+        Args:
+            href (str): The href link of the page.
+            magnet_link (str): The magnet link scraped from the page.
+
+        Returns:
+            None
+        """
+
         Database._cursor.execute("UPDATE links SET magnet_link = ? WHERE href = ?", (magnet_link, href))
         Database._conn.commit()
 
     @staticmethod
-    def get_magnet_link_without_torrent():
+    def get_magnet_links_without_torrent() -> list[sqlite3.Row]:
+        """ Retrieves all magnet links that don't have associated torrent files yet.
+
+        Returns:
+            list[sqlite3.Row]: A list of rows containing id and magnet_link for processing.
+        """
+
         Database._cursor.execute("SELECT id, magnet_link FROM links WHERE magnet_link IS NOT NULL and torrent_file IS NULL")
         return Database._cursor.fetchall()
 
     @staticmethod
-    def set_torrent(id, tor_hash, torrent_file_name):
+    def set_torrent(id: int, tor_hash: str, torrent_file_name: str) -> None:
+        """ Updates a record with torrent hash and file information.
+
+        Args:
+            id (int): The database record ID.
+            tor_hash (str): The hash of the torrent.
+            torrent_file_name (str): The filename of the saved torrent file.
+
+        Returns:
+            None
+        """
         Database._cursor.execute("UPDATE links SET torrent_hash = ?, torrent_file = ? WHERE id = ?", (tor_hash, torrent_file_name, id))
         Database._conn.commit()
 
     @staticmethod
-    def get_rows_with_file_names():
+    def get_rows_with_file_names() -> list[sqlite3.Row]:
+        """ Retrieves all rows that have file names but no training group assigned.
+
+        Returns:
+            list[sqlite3.Row]: A list of rows containing ids that need training group assignment.
+        """
         Database._cursor.execute("SELECT id FROM links WHERE file_names IS NOT NULL and training_group IS NULL")
         return Database._cursor.fetchall()
 
     @staticmethod
-    def set_training_group(id, training_group):
+    def set_training_group(id: int, training_group: str) -> None:
+        """ Assigns a training group to a specific record.
+
+        Args:
+            id (int): The database record ID.
+            training_group (str): The training group to assign ('T' for training or 'E' for evaluating).
+
+        Returns:
+            None
+        """
         Database._cursor.execute("UPDATE links SET training_group = ? WHERE id = ?", (training_group, id))
         Database._conn.commit()
 
     @staticmethod
-    def get_id_by_torrent_name(torrent_file):
+    def get_id_by_torrent_name(torrent_file: str) -> int:
+        """ Retrieves the database ID for a given torrent filename.
+
+        Args:
+            torrent_file (str): The torrent filename to look up.
+
+        Returns:
+            int: The id if found or -1 if not found.
+        """
         Database._cursor.execute("SELECT id FROM links WHERE torrent_file = ?", (torrent_file,))
         first_row = Database._cursor.fetchone()
         if first_row:
             return first_row['id']
         else:
-            return None
+            return -1
 
     @staticmethod
-    def set_file_names(id, file_names):
+    def set_file_names(id: int, file_names: list[str]) -> None:
+        """ Updates a record with the list of file names from a torrent.
+
+        Args:
+            id (int): The database record ID.
+            file_names (list[str]): List of file names/paths from the torrent.
+
+        Returns:
+            None
+        """
         file_name_string = "\n".join(file_names)
         Database._cursor.execute("UPDATE links SET file_names = ? WHERE id = ?", (file_name_string, id))
         Database._conn.commit()
 
     @staticmethod
-    def get_file_names(training_group):
+    def get_file_names(training_group: str) -> list[sqlite3.Row]:
+        """ Retrieves file names for a specific training group.
+
+        Args:
+            training_group (str): The training group to retrieve files for ('T' or 'E').
+
+        Returns:
+            list[sqlite3.Row]: A list of rows containing file_names for the specified training group.
+        """
         Database._cursor.execute("SELECT file_names FROM links WHERE training_group = ? and file_names IS NOT NULL", (training_group,))
         return Database._cursor.fetchall()
 
     @staticmethod
-    def get_files_to_annotate(n):
+    def get_files_to_annotate(n: int) -> list[str]:
+        """ Retrieves a limited number of files that need annotation.
+
+        Args:
+            n (int): The maximum number of files to retrieve.
+
+        Returns:
+            list[str]: A list of filenames that need annotation.
+        """
         Database._cursor.execute("SELECT filename FROM annotations WHERE annotation_json IS NULL LIMIT ?", (n,))
         rows = [row[0] for row in Database._cursor.fetchall()]
         return rows
 
     @staticmethod
-    def get_count_of_files_to_annotate():
+    def get_count_of_files_to_annotate() -> int:
+        """ Gets the count of files that still need annotation.
+
+        Returns:
+            int: The number of files that need annotation.
+        """
         Database._cursor.execute("SELECT COUNT(filename) FROM annotations WHERE annotation_json IS NULL")
         count = Database._cursor.fetchone()[0]
         return count
 
     @staticmethod
-    def bulk_insert_files_to_annotate(filenames: []) -> int:
+    def bulk_insert_files_to_annotate(filenames: list[str]) -> int:
+        """ Bulk inserts filenames into the annotations table for annotation.
+
+        Args:
+            filenames (list[str]): List of filenames to be annotated.
+
+        Returns:
+            int: The number of filenames successfully inserted.
+        """
         filenames = [(filename,) for filename in filenames]  # ExecuteMany expects a list of tuples
         Database._cursor.executemany("INSERT OR IGNORE INTO annotations (filename) VALUES (?)", filenames)
         Database._conn.commit()
         return Database._cursor.rowcount
 
     @staticmethod
-    def add_annotation(filename, annotation):
+    def add_annotation(filename: str, annotation: str) -> None:
+        """ Adds an annotation to a specific file.
+
+        Args:
+            filename (str): The filename to annotate.
+            annotation (str): The annotation JSON string.
+
+        Returns:
+            None
+        """
         Database._cursor.execute("UPDATE annotations SET annotation_json = ? WHERE filename = ?", (annotation, filename))
         Database._conn.commit()
 
     @staticmethod
-    def clear_all_annotations():
+    def clear_all_annotations() -> None:
+        """ Clears all annotations from the database.
+
+        Returns:
+            None
+        """
         Database._cursor.execute("UPDATE annotations SET annotation_json = NULL WHERE annotation_json IS NOT NULL")
         Database._conn.commit()

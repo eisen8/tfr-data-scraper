@@ -8,11 +8,10 @@ from urllib.parse import urljoin
 
 from dotenv import load_dotenv
 
-from common.print_helper import tprint, tprintln
 from common.database import Database as DB
 from common.constants import Constants as C
 from common.time_helper import estimate_time_remaining, format_time
-
+from common.logger import Logger as L
 
 def _get_torrent(h, source, output_dir):
     # Create output dir
@@ -21,11 +20,11 @@ def _get_torrent(h, source, output_dir):
     url = urljoin(source, f"{h}.torrent")
     output_path = output_dir / f"{h}.torrent"
     if os.path.exists(output_path):
-        tprint(f"Torrent file {output_path} already exists")
+        L.info(f"Torrent file {output_path} already exists")
         os.remove(output_path)  # For now lets delete the file and redownload it
         # raise Exception(f"Torrent file {output_path} already exists")
 
-    tprint(f"Downloading: {url}")
+    L.info(f"Downloading: {url}")
 
     # PowerShell command to use Invoke-WebRequest
     powershell_cmd = f"powershell -Command \"try {{ Invoke-WebRequest -Uri '{url}' -OutFile '{output_path}' -TimeoutSec 10 }} catch {{ Write-Host 'ERROR: ' + $_.Exception.Message; exit 1 }}\""
@@ -35,16 +34,16 @@ def _get_torrent(h, source, output_dir):
     # Check for failure
     if result.returncode != 0:
         message = result.stderr or result.stdout
-        print(f"Download failed: {message}")
+        L.error(f"Download failed: {message}")
         raise Exception(f"Unable to download torrent file - {message}")
 
     # Ensure file was actually created
     if os.path.exists(output_path):
-        tprint("File was created successfully.")
+        L.info("File was created successfully.")
     else:
-        tprint("File was not created.")
+        L.error("File was not created.")
         raise Exception(f"Torrent file {output_path} was not created")
-    tprint("Download successful")
+    L.info("Download successful")
 
     return output_path
 
@@ -52,6 +51,7 @@ def _get_torrent(h, source, output_dir):
 def _extract_magnet_hash(magnet_link):
     match = re.search(r"btih:([A-Fa-f0-9]{40}|[A-Fa-f0-9]{32})", magnet_link)
     return match.group(1).upper() if match else None  # Normalize to uppercase
+
 
 if __name__ == "__main__":
     # Config
@@ -67,10 +67,10 @@ if __name__ == "__main__":
 
     # Script
     DB.open_db()
-    rows = DB.get_magnet_link_without_torrent()
+    rows = DB.get_magnet_links_without_torrent()
     if shuffle:
         random.shuffle(rows)
-    tprint(f'Found {len(rows)} magnet links to process')
+    L.info(f'Found {len(rows)} magnet links to process')
     fail_messages = []
     total_demagnetized = 0
     start_time = time.time()
@@ -79,24 +79,23 @@ if __name__ == "__main__":
         tor_hash = _extract_magnet_hash(magnet_link)
         try:
             torrent_file_path = _get_torrent(tor_hash, base_site, C.TORRENT_FOLDER_PATH)
-            tprint(f'Extracted {torrent_file_path.name} from {tor_hash}')
+            L.info(f'Extracted {torrent_file_path.name} from {tor_hash}')
             DB.set_torrent(row['id'], tor_hash, torrent_file_path.name)
             total_demagnetized += 1
         except Exception as e:
-            tprint(f"Exception for Hash {tor_hash} - {e}\n{traceback.format_exc()}")
+            L.error(f"Exception for Hash {tor_hash}", e)
             fail_messages.append(f"Exception for {tor_hash} - {e}\n{traceback.format_exc()}")
 
-        tprint(f"Finished processing torrent {i} of {len(rows)}.")
-        tprint(f"Estimated time remaining: {estimate_time_remaining(start_time, i, len(rows), sleep_time_seconds+3)}")
-        tprint("----------------------")
+        L.info(f"Finished processing torrent {i} of {len(rows)}.")
+        L.info(f"Estimated time remaining: {estimate_time_remaining(start_time, i, len(rows), sleep_time_seconds + 3)}")
+        L.info("----------------------")
         time.sleep(random.uniform(sleep_time_seconds - sleep_time_jiggle, sleep_time_seconds + sleep_time_jiggle))
 
     DB.close_db()
-    tprintln()
-    tprint(f"---- Script has finished. ----")
-    tprint(f"Run time: {format_time(time.time()-start_time)}")
-    tprint(f"Results: ")
-    tprint(f"{total_demagnetized} Torrent Demagnetized")
-    tprint(f'{len(fail_messages)} errors occurred')
+    L.info(f"---- Script has finished. ----")
+    L.info(f"Run time: {format_time(time.time() - start_time)}")
+    L.info(f"Results: ")
+    L.info(f"{total_demagnetized} Torrent Demagnetized")
+    L.info(f'{len(fail_messages)} errors occurred')
     for i, m in enumerate(fail_messages):
-        tprint(f'Error {i + 1} - {m}')
+        L.error(f'Error {i + 1} - {m}')

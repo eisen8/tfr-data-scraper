@@ -12,11 +12,11 @@ import zstandard as zstd  # Download this library so requests will use zstd deco
 from dotenv import load_dotenv
 
 from common.database import Database as DB
-from common.print_helper import tprint, tprintln
-from src.tfr_data_scraper.common.time_helper import format_time, estimate_time_remaining
+from common.logger import Logger as L
+from common.time_helper import format_time, estimate_time_remaining
 
 
-def _update_url_page_number(page_url):
+def _update_url_page_number(page_url) -> (str, int):
     # Regular expression to check if URL ends with a number (e.g., /1/)
     match = re.search(r'(\d+)/$', page_url)
 
@@ -40,8 +40,8 @@ def _scrape_page_for_hrefs(page_html) -> Tuple[list, bool]:
         # Extract the message inside <p> tag
         message = detail_box.find('p').get_text(strip=True)
         if message:
-            tprint(message)  # Message here means the page is not valid (i.e. zero results, invalid search, etc.)
-            tprint("Finished Scrapping")
+            L.error(message)  # Message here means the page is not valid (i.e. zero results, invalid search, etc.)
+            L.info("Finished Scrapping")
             return [], True
 
     # Scraping code to get the hrefs on the search page (specific to website)
@@ -107,9 +107,9 @@ if __name__ == "__main__":
     start_time = time.time()
     while should_continue:
         try:
-            tprint(f"Processing Url {url}")
+            L.info(f"Processing Url {url}")
             page_to_scrape = session.get(url)
-            tprint(f"Status code: {page_to_scrape.status_code}")
+            L.info(f"Status code: {page_to_scrape.status_code}")
             if page_to_scrape.status_code != 200:
                 fail_messages.append(f"Unsuccessful status code: {page_to_scrape.status_code} for {url}")
             else:
@@ -123,19 +123,18 @@ if __name__ == "__main__":
                 else:
                     total_hrefs_added += DB.bulk_insert_hrefs(hrefs)  # Insert into DB and return actual HREFs added (not including duplicates)
         except Exception as e:
-            tprint(f"Exception for {url} - {e}\n{traceback.format_exc()}")
+            L.error(f"Exception for {url}", e)
             fail_messages.append(f"Exception for {url} - {e}\n{traceback.format_exc()}")
-
-        tprint(f"Finished processing url {url}")
+        L.info(f"Finished processing url {url}")
         url, currentPage = _update_url_page_number(initial_search_url)
         pages_processed += 1
 
         # Check loop ending conditions
         if len(fail_messages) >= max_fails:  # Max fails occurred
-            tprint(f"Failed {len(fail_messages)} times. Stopping the scrape")
+            L.info(f"Failed {len(fail_messages)} times. Stopping the scrape")
             should_continue = False
         elif pages_processed >= max_pages:  # Processed Max Pages
-            tprint(f"Processed max page of {max_pages}")
+            L.info(f"Processed max page of {max_pages}")
             should_continue = False
         elif currentPage == -1:  # Only one page to process and finished
             should_continue = False
@@ -143,12 +142,11 @@ if __name__ == "__main__":
             time.sleep(random.uniform(sleep_time_seconds - sleep_time_jiggle, sleep_time_seconds + sleep_time_jiggle))
 
     DB.close_db()
-    tprintln()
-    tprint(f"---- Script has finished. ----")
-    tprint(f"Run time: {format_time(time.time()-start_time)}")
-    tprint(f"Results: ")
-    tprint(f"{total_hrefs_added} Hrefs added to DB.")
-    tprint(f"{pages_processed} pages successfully processed.")
-    tprint(f'{len(fail_messages)} errors occurred')
+    L.info(f"---- Script has finished. ----")
+    L.info(f"Run time: {format_time(time.time() - start_time)}")
+    L.info(f"Results: ")
+    L.info(f"{total_hrefs_added} Hrefs added to DB.")
+    L.info(f"{pages_processed} pages successfully processed.")
+    L.info(f'{len(fail_messages)} errors occurred')
     for i, m in enumerate(fail_messages):
-        tprint(f'Error {i+1} - {m}')
+        L.error(f'Error {i + 1} - {m}')
