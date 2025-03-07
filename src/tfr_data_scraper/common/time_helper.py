@@ -2,21 +2,14 @@ from datetime import datetime
 import time
 
 
-def estimate_time_remaining(start_time, rows_processed, total_rows, guess_per_row_time) -> str:
+def estimate_time_remaining(start_time: float, rows_processed: int, total_rows: int, guess_per_row_time: float) -> str:
     """ Estimates the remaining time to process all rows based on current progress.
-
-    Args:
-        start_time (float): Timestamp when processing started (from time.time())
-        rows_processed (int): Number of rows that have been processed so far
-        total_rows (int): Total number of rows to process
-        guess_per_row_time (float): Initial estimate of time per row in seconds
-
-    Returns:
-        str: Formatted time string in the format "Xh Ym Zs"
-
-    Note:
-        For the first 50 rows, uses the guess_per_row_time for estimation.
-        After 50 rows, calculates the actual average time per row based on performance.
+     Notes: For the first 50 rows, uses the guess_per_row_time for estimation. After 50 rows, calculates the actual average time per row based on performance.
+    :param start_time: Timestamp when processing started (from time.time())
+    :param rows_processed: Number of rows that have been processed so far
+    :param total_rows: Total number of rows to process
+    :param guess_per_row_time: Initial estimate of time per row in seconds
+    :return: Formatted time string in the format "Xh Ym Zs"
     """
     remaining_rows = total_rows - rows_processed
 
@@ -31,14 +24,9 @@ def estimate_time_remaining(start_time, rows_processed, total_rows, guess_per_ro
 
 
 def format_time(seconds) -> str:
-    """
-    Formats a time duration in seconds to a human-readable string.
-
-    Args:
-        seconds (float): Time duration in seconds
-
-    Returns:
-        str: Formatted time string in the format "Xh Ym Zs"
+    """Formats a time duration in seconds to a human-readable string.
+    :param seconds: Time duration in seconds
+    :return: Formatted time string in the format "Xh Ym Zs"
     """
     hours, remainder = divmod(int(seconds), 3600)
     minutes, seconds = divmod(remainder, 60)
@@ -46,11 +34,8 @@ def format_time(seconds) -> str:
 
 
 def get_timestamp() -> str:
-    """
-    Generates a formatted timestamp string for the current time.
-
-    Returns:
-        str:  Timestamp formatted as "YYYY-MM-DD_HH-MM-SS"
+    """ Generates a formatted timestamp string for the current time.
+    :return: Timestamp formatted as "YYYY-MM-DD_HH-MM-SS"
     """
     timestamp = time.time()
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d_%H-%M-%S")
