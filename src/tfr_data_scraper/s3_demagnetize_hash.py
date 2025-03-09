@@ -83,7 +83,6 @@ if __name__ == "__main__":
         random.shuffle(rows)
     L.info(f'Found {len(rows)} magnet links to process')
 
-    fail_messages = []
     total_demagnetized = 0
     start_time = time.time()
     for i, row in enumerate(rows):
@@ -103,9 +102,13 @@ if __name__ == "__main__":
         except Exception as e:
             L.error(f"Exception for row {row}", e)
 
-        L.info(f"Finished processing torrent {i} of {len(rows)}.")
-        L.info(f"Estimated time remaining: {estimate_time_remaining(start_time, i, len(rows), sleep_time_seconds + 3)}")
+        L.info(f"Finished processing torrent {i+1} of {len(rows)}.")
+        L.info(f"Estimated time remaining: {estimate_time_remaining(start_time, i+1, len(rows), sleep_time_seconds + 3)}")
         L.info("----------------------")
+
+        if L.num_errors >= max_fails:
+            L.info(f"Failed {L.num_errors} times. Stopping the scrape")
+            break
         time.sleep(random.uniform(sleep_time_seconds - sleep_time_jiggle, sleep_time_seconds + sleep_time_jiggle))
 
     # Summary
@@ -113,5 +116,5 @@ if __name__ == "__main__":
     L.info(f"Run time: {format_time(time.time() - start_time)}")
     L.info(f"Results: ")
     L.info(f"{total_demagnetized} Torrent Demagnetized")
-    L.info(f'{L.num_errors} errors occurred')
+    L.info(f'{L.num_errors} errors occurred:')
     L.print_error_messages()

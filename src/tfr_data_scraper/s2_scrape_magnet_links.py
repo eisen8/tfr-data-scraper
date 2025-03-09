@@ -30,8 +30,7 @@ if __name__ == "__main__":
     # -- SCRIPT --
     session = requests.Session()
     session.headers.update(C.get_headers(base_site))
-    with Database() as DB:
-        hrefs = DB.get_hrefs_without_magnet_links()
+    hrefs = DB.get_hrefs_without_magnet_links()
     if shuffle:
         random.shuffle(hrefs)
 
@@ -45,25 +44,25 @@ if __name__ == "__main__":
             L.info(f"Processing Url {url}")
 
             # Get request
-            request = session.get(url, timeout=30)
+            response = session.get(url, timeout=30)
             L.info(f"Status code: {response.status_code}")
             response.raise_for_status()  # Raise exception for 4XX/5XX responses
 
             # Extract the magnet link
-            soup = BeautifulSoup(request.text, 'html.parser')
-            match = re.search(r"\"(magnet:\S+)\"", request.text)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            match = re.search(r"\"(magnet:\S+)\"", response.text)
             if match and match.group(1):
                 magnet_link = match.group(1)
                 L.info(f"magnet link: {magnet_link}")
-                DB.update_href_with_magnet(href, magnet_link)
+                DB.update_href_with_magnet_link(href, magnet_link)
                 total_links += 1
             else:
                 L.error("Magnet URL not found.")
         except Exception as e:
             L.error(f"Exception for {url}", e)
 
-        L.info(f"Finished processing url {i} of {len(hrefs)}")
-        L.info(f"Estimated time remaining: {estimate_time_remaining(start_time, i, len(hrefs), sleep_time_seconds+3)}")
+        L.info(f"Finished processing url {i+1} of {len(hrefs)}")
+        L.info(f"Estimated time remaining: {estimate_time_remaining(start_time, i+1, len(hrefs), sleep_time_seconds+3)}")
         L.info("----------------------")
 
         if L.num_errors >= max_fails:
@@ -77,5 +76,5 @@ if __name__ == "__main__":
     L.info(f"Run time: {format_time(time.time()-start_time)}")
     L.info(f"Results: ")
     L.info(f"{total_links} Links added to DB.")
-    L.info(f'{L.num_errors} errors occurred')
+    L.info(f'{L.num_errors} errors occurred:')
     L.print_error_messages()

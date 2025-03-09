@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     # Initial Search URL. If it ends in a digit (i.e. /1/) it will be treated as multiple pages to scrape and this digit will be updated.
     # examples: category-search/mysearch/Anime/1/ /top-100-anime
-    initial_search_url = urljoin(base_site, "/top-100-anime")
+    initial_search_url = urljoin(base_site, "category-search/mysearch/Anime/1/")
     max_pages = 50  # The maximum number of pages to scrape
     max_fails = 3  # The maximum number of fails before stopping. Fails include network issues, page not found, and no links found.
     min_seeds = 1  # minimum number of seeds to be considered valid
@@ -86,13 +86,12 @@ if __name__ == "__main__":
 
     pages_processed = 0
     current_page_num = 0
-    should_continue = True
     url = initial_search_url
     total_hrefs_added = 0
 
     # Scraping loop
     start_time = time.time()
-    while pages_processed <= max_pages and current_page_num != -1:
+    while pages_processed < max_pages and current_page_num != -1 and L.num_errors < max_fails:
         try:
             L.info(f"Processing Url {url}")
 
@@ -106,23 +105,16 @@ if __name__ == "__main__":
 
             L.info(f"Found {len(hrefs)} hrefs")
             if len(hrefs) == 0:
-                L.error("No hrefs found on page")
-                break
-
-            # Add to DB
-            total_hrefs_added += DB.bulk_insert_hrefs(hrefs)
+                L.error(f"No hrefs found on page {url}")
+            else:
+                total_hrefs_added += DB.bulk_insert_hrefs(hrefs) # Add to DB
         except Exception as e:
             L.error(f"Exception for {url}", e)
 
         # Update current page url
         L.info(f"Finished processing url {url}")
-        url, current_page_num = _update_url_page_number(initial_search_url)
+        url, current_page_num = _update_url_page_number(url)
         pages_processed += 1
-
-        # Check loop ending conditions
-        if L.num_errors >= max_fails:  # Max fails occurred
-            L.info(f"Failed {L.num_errors} times. Stopping the scrape")
-            break
 
         # Sleep with jiggle
         time.sleep(random.uniform(sleep_time_seconds - sleep_time_jiggle, sleep_time_seconds + sleep_time_jiggle))
@@ -133,5 +125,5 @@ if __name__ == "__main__":
     L.info(f"Results: ")
     L.info(f"{total_hrefs_added} Hrefs added to DB.")
     L.info(f"{pages_processed} pages successfully processed.")
-    L.info(f'{L.num_errors} errors occurred')
+    L.info(f'{L.num_errors} errors occurred:')
     L.print_error_messages()

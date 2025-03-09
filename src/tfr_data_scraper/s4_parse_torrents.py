@@ -45,30 +45,27 @@ if __name__ == "__main__":
     # -- SCRIPT --
     torrent_files_processed = 0
     subfiles_added = 0
-    fail_messages = []
 
     start_time = time.time()
-    L.info(f"Getting torrent files from {C.TORRENT_FOLDER_PATH}")
-    for path, folders, torr_files in os.walk(C.TORRENT_FOLDER_PATH):
-        for torr_file in torr_files:
-            if torr_file.endswith('.torrent'):
-                try:
-                    # Get id
-                    id = DB.get_id_by_torrent_name(torr_file)
-                    if id is None:
-                        L.error(f"Could not find torrent {torr_file} in DB")
-                        continue
+    rows = DB.get_torrents_without_files()
+    L.info(f'Found {len(rows)} torrent files to process')
+    for i, row in enumerate(rows):
+        try:
+            id = row[0]
+            filename = row[1]
+            filepath = str(os.path.join(C.TORRENT_FOLDER_PATH, filename))
+            L.info(f'Processing {filepath}')
 
-                    # Parse file names from torrent file
-                    name, files = _parse_torrent(str(os.path.join(path, torr_file)))
-                    L.info(f"files: {",".join(files)}")
+            # Parse file names from torrent file
+            name, files = _parse_torrent(filepath)
+            L.info(f"files: {",".join(files)}")
 
-                    # Add file names to DB
-                    DB.set_file_names(id, files)
-                    subfiles_added += len(files)
-                    torrent_files_processed += 1
-                except Exception as e:
-                    L.error(f"Exception for {torr_file}", e)
+            # Add file names to DB
+            DB.set_file_names(id, files)
+            subfiles_added += len(files)
+            torrent_files_processed += 1
+        except Exception as e:
+            L.error(f"Exception for {filepath}", e)
 
     # Summary
     L.info(f"---- Script has finished. ----")
@@ -76,5 +73,4 @@ if __name__ == "__main__":
     L.info(f"Results: ")
     L.info(f"{torrent_files_processed} Torrent files Processed.")
     L.info(f"{subfiles_added} Subfiles Added.")
-    L.info(f'{L.num_errors} errors occurred')
-    L.print_error_messages()
+    L.info(f'{L.num_errors} errors occurred:')

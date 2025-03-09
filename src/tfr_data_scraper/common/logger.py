@@ -12,6 +12,8 @@ class Logger:
     _RESET = "\033[0m"
     _ERROR_MESSAGES = []
 
+    num_errors = 0
+
     @staticmethod
     def _log(level, message, color=""):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -28,13 +30,12 @@ class Logger:
             print(Logger._RED + "".join(traceback.format_exception(None, exception, exception.__traceback__)) + Logger._RESET)
 
         Logger._ERROR_MESSAGES.append((message, exception))
+        Logger.num_errors += 1
 
     @staticmethod
     def print_error_messages():
-        for error in Logger._ERROR_MESSAGES:
-            Logger.error(error[0], error[1])
-
-    @staticmethod
-    def num_errors() -> int:
-        return len(Logger._ERROR_MESSAGES)
-
+        for message in Logger._ERROR_MESSAGES:
+            Logger._log("ERROR", message[0], Logger._RED)
+            exception = message[1]
+            if exception:
+                print(Logger._RED + "".join(traceback.format_exception(None, exception, exception.__traceback__)) + Logger._RESET)
